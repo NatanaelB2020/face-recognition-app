@@ -10,6 +10,7 @@ class Face(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     image_data = Column(LargeBinary, nullable=False)
     filename = Column(String(255), nullable=True)
+    source = Column(String(50), nullable=False)  # 🔹 UPLOAD ou CAMERA
 
     # relacionamento de volta para o usuário
     user = relationship("User", back_populates="faces")

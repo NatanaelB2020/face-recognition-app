@@ -1,14 +1,20 @@
-version: '3.8'
-
 services:
   app:
-    build: ./app
+    build:
+      context: .          # agora aponta para a raiz do projeto
     container_name: fastapi_face_app
     restart: always
     environment:
-      # Use o IP do host ou hostname do container do db se estiver na mesma rede
-      DATABASE_URL: postgresql+psycopg2://faceuser:facepass@host.docker.internal:5432/facedb
+      DATABASE_URL: postgresql+psycopg2://faceuser:facepass@db:5432/facedb
     volumes:
-      - ./app:/usr/src/app
+      - ./app:/usr/src/app/app   # mantém sincronizado o código
     ports:
       - "8000:8000"
+    depends_on:
+      - db
+    networks:
+      - fastapi-net
+
+networks:
+  fastapi-net:
+    external: true

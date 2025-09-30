@@ -5,9 +5,10 @@ from app.model.face import Face
 from app.routes.user import router as user_router
 from app.routes.face import router as face_router
 
+
 app = FastAPI()
 
-# Criar tabelas
+# Criar tabelas no banco (somente se não existirem)
 Base.metadata.create_all(bind=engine)
 
 # Incluir rotas
