@@ -1,5 +1,5 @@
 # app/model/face.py
-from sqlalchemy import Column, Integer, ForeignKey, String, LargeBinary
+from sqlalchemy import Column, Integer, ForeignKey, String, LargeBinary, DateTime, func
 from sqlalchemy.orm import relationship
 from app.data.database import Base
 
@@ -10,7 +10,8 @@ class Face(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     image_data = Column(LargeBinary, nullable=False)
     filename = Column(String(255), nullable=True)
-    source = Column(String(50), nullable=False)  # 🔹 UPLOAD ou CAMERA
+    source = Column(String(50), nullable=False, default="UPLOAD")  # 🔹 UPLOAD ou CAMERA
+    created_at = Column(DateTime(timezone=True), server_default=func.now())  # 🔹 data/hora criação
 
     # relacionamento de volta para o usuário
     user = relationship("User", back_populates="faces")
