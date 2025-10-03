@@ -6,3 +6,8 @@ python-dotenv
 python-multipart
 opencv-python
 opencv-python-headless
+numpy
+cmake          # ajuda a compilar dlib se não tiver precompilado
+dlib           # backend usado pelo face_recognition
+face-recognition
+mediapipe
