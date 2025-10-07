@@ -51,7 +51,7 @@ app/
 
 1. **Clone o repositório**
    ```bash
-   git clone https://github.com/SEU_USUARIO/face-liveness-api.git
+   git clone https://github.com/NatanaelB2020/face-recognition-app.git
    cd face-liveness-api
    ```
 
