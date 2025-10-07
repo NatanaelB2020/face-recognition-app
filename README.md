@@ -160,7 +160,6 @@ mediapipe
 
 ## 💡 Melhorias Futuras
 
-- [ ] Suporte a múltiplos rostos na mesma captura  
 - [ ] Integração com reconhecimento facial automático (sem ID manual)  
 - [ ] Adição de logs estruturados e métricas de performance  
 - [ ] Deploy em Docker com GPU para aceleração via CUDA  
