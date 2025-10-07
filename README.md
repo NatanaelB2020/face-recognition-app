@@ -170,12 +170,8 @@ mediapipe
 ## 🧑‍💻 Autor
 
 **Natanael Amaral de Barros**  
-📧 [Seu e-mail ou LinkedIn aqui]  
-💻 [https://github.com/SEU_USUARIO](https://github.com/SEU_USUARIO)
+📧 https://www.linkedin.com/in/natanael-amaral-9154ab175/
+💻 https://github.com/NatanaelB2020
 
----
 
-## 🛡️ Licença
 
-Este projeto é distribuído sob a licença MIT.  
-Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
