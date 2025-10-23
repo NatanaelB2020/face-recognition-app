@@ -17,7 +17,10 @@ async def upload_faces(user_id: int, files: list[UploadFile] = File(...), db: Se
 
 @router.post("/liveness/{user_id}")
 async def liveness(user_id: int, files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
-    frame_bytes = [await file.read() for file in files]
-    # Usando a classe FaceLivenessService
-    result = FaceLivenessService.process_batch_frames(db, user_id, frame_bytes)
-    return result
+    try:
+        frame_bytes_list = [await file.read() for file in files]
+        result = FaceLivenessService.process_batch_frames(db, user_id, frame_bytes_list)
+        return result
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+

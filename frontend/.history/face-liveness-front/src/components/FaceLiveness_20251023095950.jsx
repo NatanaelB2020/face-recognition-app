@@ -4,7 +4,7 @@ import "./FaceLiveness.css";
 
 export default function FaceLiveness() {
   const [userId, setUserId] = useState("");
-  const [resultMessage, setResultMessage] = useState("");
+  const [response, setResponse] = useState(null);
   const [loading, setLoading] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [faceCentered, setFaceCentered] = useState(false);
@@ -107,7 +107,6 @@ export default function FaceLiveness() {
     if (!videoRef.current || !canvasRef.current || !userId) return;
 
     setLoading(true);
-    setResultMessage("");
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     canvas.width = videoRef.current.videoWidth || 640;
@@ -144,15 +143,10 @@ export default function FaceLiveness() {
       const res = await fetch(`http://localhost:8000/faces/liveness/${userId}`, { method: "POST", body: formData });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-
-      // === Apenas o status final do rosto ===
-      if (data.data?.same_person) {
-        setResultMessage("✅ Rosto confirmado como correto");
-      } else {
-        setResultMessage("❌ Rosto diferente ou não reconhecido");
-      }
+      setResponse(data);
+      alert(`Teste de liveness concluído! Resultado: ${JSON.stringify(data.status || "OK")}`);
     } catch (err) {
-      setResultMessage("❌ Erro ao enviar dados: " + err.message);
+      alert("Erro ao enviar dados: " + err.message);
     } finally {
       setLoading(false);
       allFrames.length = 0;
@@ -167,7 +161,6 @@ export default function FaceLiveness() {
     setCameraActive(false);
     setFaceCentered(false);
     setFaceDetected(false);
-    setResultMessage("");
   };
 
   useEffect(() => () => stopAll(), []);
@@ -265,9 +258,10 @@ export default function FaceLiveness() {
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      {resultMessage && (
-        <div className="result" style={{ marginTop: 12, fontSize: 18 }}>
-          {resultMessage}
+      {response && (
+        <div className="result" style={{ marginTop: 12 }}>
+          <h4>Resultado do Teste:</h4>
+          <pre>{JSON.stringify(response, null, 2)}</pre>
         </div>
       )}
     </div>
