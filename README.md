@@ -1,4 +1,4 @@
-# 👁️ Face Liveness Detection API  
+# Face Liveness Detection API  
 Verificação de vivacidade facial em tempo real usando **FastAPI**, **OpenCV**, **MediaPipe** e **Face Recognition**.
 
 ---
