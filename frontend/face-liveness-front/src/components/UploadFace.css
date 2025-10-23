@@ -1,0 +1,195 @@
+.upload-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #f7f7f7;
+  color: #213547;
+  min-height: 100vh;
+  padding: 30px;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.upload-card h2 {
+  color: #0077cc;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.upload-card input {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #0077cc;
+  background: #fff;
+  color: #213547;
+  width: 220px;
+  text-align: center;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.start-button {
+  background: #0077cc;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s;
+  margin: 5px;
+}
+
+.start-button:hover {
+  background: #005fa3;
+}
+
+.video-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 4/3;
+  background-color: #f0f0f0;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 20px;
+}
+
+.video-wrapper video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+/* Moldura da face com indicador de cor */
+.face-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 320px;
+  height: 320px;
+  border: 4px solid #ff4d4d; /* vermelho inicial */
+  border-radius: 50%;
+  box-shadow: 0 0 25px rgba(255, 77, 77, 0.5);
+  pointer-events: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+/* Estados do indicador */
+.face-frame.detected {
+  border-color: #ffa500; /* laranja */
+  box-shadow: 0 0 25px rgba(255, 165, 0, 0.6);
+}
+
+.face-frame.centered {
+  border-color: #00cc66; /* verde */
+  box-shadow: 0 0 25px rgba(0, 204, 102, 0.7);
+}
+
+/* Indicação de movimento da cabeça */
+.arrow-overlay {
+  position: absolute;
+  top: 10%;
+  font-size: 22px;
+  background-color: rgba(0, 119, 204, 0.3);
+  padding: 8px 12px;
+  border-radius: 8px;
+  pointer-events: none;
+  opacity: 0.9;
+  animation: pulse 1s infinite;
+  font-weight: bold;
+  color: #fff;
+}
+
+.arrow-overlay.esquerda {
+  left: 20px;
+}
+
+.arrow-overlay.direita {
+  right: 20px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+.movement-status {
+  margin-top: 15px;
+  width: 100%;
+  max-width: 640px;
+}
+
+.movement-status p {
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-align: center;
+  color: #0077cc;
+  font-size: 16px;
+}
+
+.progress-bar {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  height: 14px;
+}
+
+.progress-fill {
+  flex: 1;
+  background-color: #ddd;
+  border-radius: 7px;
+  transition: background-color 0.3s;
+}
+
+.progress-fill.active {
+  background-color: #0077cc;
+}
+
+.result {
+  margin-top: 20px;
+  background: #e0e0e0;
+  padding: 12px;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 640px;
+  overflow-x: auto;
+  color: #213547;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Responsividade */
+@media (max-width: 700px) {
+  .upload-card input {
+    width: 90%;
+  }
+
+  .video-wrapper {
+    max-width: 100%;
+  }
+
+  .face-frame {
+    width: 250px;
+    height: 250px;
+  }
+
+  .result {
+    width: 95%;
+  }
+
+  .arrow-overlay {
+    font-size: 18px;
+    padding: 6px 10px;
+  }
+}

@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:15
+    container_name: postgres_face
+    restart: always
+    environment:
+      POSTGRES_DB: facedb
+      POSTGRES_USER: faceuser
+      POSTGRES_PASSWORD: facepass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - fastapi-net
+
+volumes:
+  pgdata:
+
+networks:
+  fastapi-net:
+    external: true

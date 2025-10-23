@@ -1,0 +1,46 @@
+.sidebar {
+  width: 250px;
+  background-color: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(5px);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0;
+  transition: width 0.3s ease;
+}
+
+.sidebar-collapsed {
+  width: 0;
+  overflow: hidden;
+}
+
+.menu-button {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  background-color: transparent;
+  border: none;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: 100%; 
+  text-align: left;
+  border-radius: 0; 
+}
+
+.menu-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.menu-button-active {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.menu-icon {
+  font-size: 1.4em;
+}
+
+.menu-label {
+  margin-left: 10px;
+  font-size: 1em;
+}
