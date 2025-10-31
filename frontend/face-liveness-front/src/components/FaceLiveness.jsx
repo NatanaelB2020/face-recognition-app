@@ -4,14 +4,11 @@ import "./FaceLiveness.css";
 
 export default function FaceLiveness() {
   const [userId, setUserId] = useState("");
-  const [resultMessage, setResultMessage] = useState("");
-  const [loading, setLoading] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
-  const [faceCentered, setFaceCentered] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
-  const [usingFaceApi, setUsingFaceApi] = useState(false);
-  const [currentStep, setCurrentStep] = useState(-1);
-  const [currentFrame, setCurrentFrame] = useState(0);
+  const [faceCentered, setFaceCentered] = useState(false);
+  const [currentMoveIndex, setCurrentMoveIndex] = useState(-1);
+  const [overlayMessage, setOverlayMessage] = useState("");
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -19,30 +16,29 @@ export default function FaceLiveness() {
   const detectorRef = useRef(null);
   const rafRef = useRef(null);
 
+  const CENTER_TOLERANCE = 0.22;
   const movementSequence = ["ESQUERDA", "DIREITA"];
   const framesPerMove = 10;
   const frameInterval = 400;
-  const CENTER_TOLERANCE = 0.22;
 
-  // --- Início da câmera ---
+  // --- Inicializa câmera ---
   const startCamera = async () => {
     if (!userId) return alert("Informe o ID do Usuário");
     setCameraActive(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 },
+      });
       videoRef.current.srcObject = stream;
       streamRef.current = stream;
       await videoRef.current.play();
 
       if ("FaceDetector" in window) {
-        try {
-          detectorRef.current = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
-          startDetectLoopNative();
-        } catch {
-          startFaceApiFallback();
-        }
+        detectorRef.current = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+        detectLoopNative();
       } else {
-        startFaceApiFallback();
+        await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+        detectLoopFaceApi();
       }
     } catch (err) {
       alert("Erro ao acessar câmera: " + err.message);
@@ -50,8 +46,8 @@ export default function FaceLiveness() {
     }
   };
 
-  // --- Detecção nativa ---
-  const startDetectLoopNative = () => {
+  // --- Loop detecção nativa ---
+  const detectLoopNative = async () => {
     const detectFrame = async () => {
       if (!detectorRef.current || !videoRef.current) {
         rafRef.current = requestAnimationFrame(detectFrame);
@@ -61,8 +57,8 @@ export default function FaceLiveness() {
         const faces = await detectorRef.current.detect(videoRef.current);
         if (faces.length > 0) {
           const box = faces[0].boundingBox;
-          const nx = (box.x + box.width / 2) / (videoRef.current.videoWidth || 640);
-          const ny = (box.y + box.height / 2) / (videoRef.current.videoHeight || 480);
+          const nx = (box.x + box.width / 2) / videoRef.current.videoWidth;
+          const ny = (box.y + box.height / 2) / videoRef.current.videoHeight;
           setFaceDetected(true);
           setFaceCentered(Math.abs(nx - 0.5) <= CENTER_TOLERANCE && Math.abs(ny - 0.5) <= CENTER_TOLERANCE);
         } else {
@@ -76,21 +72,19 @@ export default function FaceLiveness() {
         rafRef.current = requestAnimationFrame(detectFrame);
       }
     };
-    rafRef.current = requestAnimationFrame(detectFrame);
+    detectFrame();
   };
 
-  // --- Fallback: face-api.js ---
-  const startFaceApiFallback = async () => {
-    setUsingFaceApi(true);
-    await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+  // --- Loop detecção face-api ---
+  const detectLoopFaceApi = async () => {
     const detectFrame = async () => {
       if (!videoRef.current) return;
       const detection = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions());
       if (detection) {
-        setFaceDetected(true);
         const box = detection.box;
         const nx = (box.x + box.width / 2) / videoRef.current.videoWidth;
         const ny = (box.y + box.height / 2) / videoRef.current.videoHeight;
+        setFaceDetected(true);
         setFaceCentered(Math.abs(nx - 0.5) <= CENTER_TOLERANCE && Math.abs(ny - 0.5) <= CENTER_TOLERANCE);
       } else {
         setFaceDetected(false);
@@ -101,73 +95,90 @@ export default function FaceLiveness() {
     detectFrame();
   };
 
-  // --- Captura da sequência ---
-  const captureLivenessSequence = async () => {
-    if (!faceCentered) return alert("Centralize seu rosto antes de iniciar o teste.");
-    if (!videoRef.current || !canvasRef.current || !userId) return;
+  // --- Inicia captura do primeiro movimento quando rosto centralizado ---
+  useEffect(() => {
+    if (faceCentered && currentMoveIndex === -1) {
+      setCurrentMoveIndex(0);
+    }
+  }, [faceCentered]);
 
-    setLoading(true);
-    setResultMessage("");
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    canvas.width = videoRef.current.videoWidth || 640;
-    canvas.height = videoRef.current.videoHeight || 480;
+  // --- Captura sequencial de movimentos ---
+  useEffect(() => {
+    const captureMove = async () => {
+      if (currentMoveIndex === -1 || currentMoveIndex >= movementSequence.length) return;
 
-    const allFrames = [];
+      setOverlayMessage(`Mova o rosto para ${movementSequence[currentMoveIndex]}...`);
 
-    for (let step = 0; step < movementSequence.length; step++) {
-      setCurrentStep(step);
-      setCurrentFrame(0);
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      canvas.width = videoRef.current.videoWidth || 640;
+      canvas.height = videoRef.current.videoHeight || 480;
 
+      const frames = [];
       for (let f = 0; f < framesPerMove; f++) {
-        setCurrentFrame(f + 1);
         ctx.save();
         ctx.scale(-1, 1);
         ctx.drawImage(videoRef.current, -canvas.width, 0, canvas.width, canvas.height);
         ctx.restore();
         const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.9));
         if (blob)
-          allFrames.push(
-            new File([blob], `frame_${movementSequence[step]}_${f}_${Date.now()}.jpg`, { type: "image/jpeg" })
+          frames.push(
+            new File(
+              [blob],
+              `frame_${movementSequence[currentMoveIndex]}_${f}_${Date.now()}.jpg`,
+              { type: "image/jpeg" }
+            )
           );
         await new Promise((r) => setTimeout(r, frameInterval));
       }
-    }
 
-    setCurrentStep(-1);
-    setCurrentFrame(0);
+      if (!canvas.framesCollected) canvas.framesCollected = [];
+      canvas.framesCollected.push(...frames);
 
+      const nextIndex = currentMoveIndex + 1;
+      if (nextIndex < movementSequence.length) {
+        // vai direto para o próximo movimento sem pausa
+        setCurrentMoveIndex(nextIndex);
+      } else {
+        setOverlayMessage("Salvando e validando rosto...");
+        await captureFinalResult();
+        setCurrentMoveIndex(movementSequence.length);
+      }
+    };
+
+    captureMove();
+  }, [currentMoveIndex]);
+
+  // --- Envio final ---
+  const captureFinalResult = async () => {
     const formData = new FormData();
-    allFrames.forEach((f) => formData.append("files", f));
+    canvasRef.current.framesCollected.forEach((f) => formData.append("files", f));
 
     try {
-      const res = await fetch(`http://localhost:8000/faces/liveness/${userId}`, { method: "POST", body: formData });
+      const res = await fetch(`http://localhost:8000/faces/liveness/${userId}`, {
+        method: "POST",
+        body: formData,
+      });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-
-      // === Apenas o status final do rosto ===
-      if (data.data?.same_person) {
-        setResultMessage("✅ Rosto confirmado como correto");
-      } else {
-        setResultMessage("❌ Rosto diferente ou não reconhecido");
-      }
+      setOverlayMessage(data.same_person_batch ? "Verificação realizada com sucesso!" : "Rosto diferente ou não reconhecido");
     } catch (err) {
-      setResultMessage("❌ Erro ao enviar dados: " + err.message);
+      setOverlayMessage("❌ Erro ao enviar dados: " + err.message);
     } finally {
-      setLoading(false);
-      allFrames.length = 0;
+      canvasRef.current.framesCollected = [];
     }
   };
 
-  // --- Parar e limpar ---
+  // --- Parar tudo ---
   const stopAll = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     detectorRef.current = null;
     setCameraActive(false);
-    setFaceCentered(false);
     setFaceDetected(false);
-    setResultMessage("");
+    setFaceCentered(false);
+    setCurrentMoveIndex(-1);
+    setOverlayMessage("");
   };
 
   useEffect(() => () => stopAll(), []);
@@ -175,101 +186,33 @@ export default function FaceLiveness() {
   return (
     <div className="upload-card">
       <h2>Verificação de Liveness Facial</h2>
-      <input type="text" placeholder="ID do Usuário" value={userId} onChange={(e) => setUserId(e.target.value)} />
 
-      <div className="button-group" style={{ marginBottom: 12 }}>
-        {!cameraActive && (
-          <button className="start-button" onClick={startCamera} disabled={loading || !userId}>
-            Ativar Câmera
-          </button>
-        )}
+      <input
+        type="text"
+        placeholder="ID do Usuário"
+        value={userId}
+        onChange={(e) => setUserId(e.target.value)}
+      />
 
-        {cameraActive && (
-          <>
-            <button
-              className="start-button"
-              onClick={captureLivenessSequence}
-              disabled={loading || !faceCentered}
-            >
-              {loading
-                ? "Analisando..."
-                : faceCentered
-                ? "Iniciar Teste de Liveness"
-                : "Aguardando centralização..."}
-            </button>
-            <button
-              className="start-button"
-              onClick={stopAll}
-              style={{ background: "#f44336", marginLeft: 8 }}
-            >
-              Parar
-            </button>
-          </>
-        )}
-      </div>
+      {!cameraActive && (
+        <button className="start-button" onClick={startCamera} disabled={!userId}>
+          Ativar Câmera
+        </button>
+      )}
 
       {cameraActive && (
-        <div className="video-wrapper" style={{ position: "relative" }}>
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            width="640"
-            height="480"
-            style={{ borderRadius: 8, transform: "scaleX(-1)", backgroundColor: "#000" }}
-          />
-
+        <div className="video-wrapper">
+          <video ref={videoRef} autoPlay playsInline muted />
           <div className="face-frame" />
-
-          <div
-            className="arrow-overlay"
-            style={{
-              top: 12,
-              left: "50%",
-              transform: "translateX(-50%)",
-              backgroundColor: faceDetected
-                ? faceCentered
-                  ? "rgba(46,170,65,0.85)"
-                  : "rgba(255,165,0,0.9)"
-                : "rgba(220,20,60,0.9)",
-            }}
-          >
-            {faceDetected
-              ? faceCentered
-                ? "Rosto centralizado"
-                : "Ajuste seu rosto ao centro"
-              : "Rosto não detectado"}
+          <div className="arrow-overlay">
+            {!faceDetected && "Rosto não detectado"}
+            {faceDetected && !faceCentered && "Centralize seu rosto"}
+            {faceCentered && overlayMessage}
           </div>
-
-          {currentStep >= 0 && (
-            <div
-              className="movement-instruction"
-              style={{
-                position: "absolute",
-                bottom: 20,
-                left: "50%",
-                transform: "translateX(-50%)",
-                padding: "8px 16px",
-                borderRadius: 8,
-                backgroundColor: "rgba(0,0,0,0.6)",
-                color: "#fff",
-                fontSize: 18,
-              }}
-            >
-              Mova para: {movementSequence[currentStep]} ({currentFrame}/{framesPerMove})
-            </div>
-          )}
         </div>
       )}
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
-
-      {resultMessage && (
-        <div className="result" style={{ marginTop: 12, fontSize: 18 }}>
-          {resultMessage}
-        </div>
-      )}
     </div>
   );
 }
