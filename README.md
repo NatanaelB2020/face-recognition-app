@@ -5,8 +5,10 @@ Verificação de vivacidade facial em tempo real usando **FastAPI**, **OpenCV**,
 
 ## 🚀 Descrição
 
-Este projeto implementa um **sistema de liveness ativo**, que detecta se uma face é real (viva) por meio de movimentos sutis da cabeça capturados pela câmera.  
-É ideal para sistemas de autenticação facial, antifraude e verificação biométrica.
+Sistema para verificação de vivacidade facial (liveness detection) e reconhecimento facial.  
+A aplicação é composta por **Frontend**, **Backend** e **Banco de Dados**, executados de forma integrada via Docker.  
+O sistema permite cadastrar usuários, registrar imagens base, realizar liveness ativo e autenticação facial.
+
 
 A API expõe um endpoint que:
 - Abre a câmera do usuário em tempo real;
