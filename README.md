@@ -124,11 +124,6 @@ Após a criação do usuário, o fluxo de cadastro de face, captura e liveness s
 - Dependências Principais:
     - `fastapi`, `uvicorn[standard]`, `sqlalchemy`, `opencv-python`, `numpy`, `cmake`, `dlib`, `face-recognition`, `mediapipe`
 
-*💡 Melhorias Futuras*
-- Integração com reconhecimento facial automático (sem a necessidade de informar ID manual).
-- Adição de logs estruturados e métricas de performance.
-- Deploy em Docker com GPU para aceleração via CUDA.
-
 *🧑‍💻 Desenvolvedor Responsável*
 Natanael Amaral de Barros
 - GitHub: https://github.com/NatanaelB2020
