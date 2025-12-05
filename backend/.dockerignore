@@ -1,0 +1,80 @@
+# ============================
+# Ignora pastas de modelos
+# ============================
+app/models/
+models/
+**/models/
+**/onnx/
+**/weights/
+**/checkpoints/
+
+# ============================
+# Ignorar envs, venvs e caches
+# ============================
+.env
+*.env
+venv/
+.venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# ============================
+# Ignorar arquivos grandes
+# ============================
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# ============================
+# Ignorar arquivos temporários
+# ============================
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# ============================
+# Ignorar IDEs
+# ============================
+.vscode/
+.idea/
+*.iml
+
+# ============================
+# Ignorar arquivos/dirs do Docker
+# ============================
+Dockerfile
+docker-compose.yml
+docker-compose-backend.yml
+.DS_Store
+
+# ============================
+# Ignorar arquivos de build
+# ============================
+dist/
+build/
+wheels/
+*.whl
+*.egg-info/
+
+# ============================
+# Ignorar testes (opcional)
+# ============================
+tests/
+test/
+*.pytest_cache/
+
+# ============================
+# Ignorar uploads temporários
+# ============================
+uploads/
+temp/
+tmp/

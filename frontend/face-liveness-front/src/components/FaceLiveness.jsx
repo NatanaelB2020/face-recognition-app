@@ -18,10 +18,10 @@ export default function FaceLiveness() {
 
   const CENTER_TOLERANCE = 0.22;
   const movementSequence = ["ESQUERDA", "DIREITA"];
-  const framesPerMove = 10;
+  const framesPerMove = 5;
   const frameInterval = 400;
 
-  // --- Inicializa câmera ---
+  // === Inicia câmera ===
   const startCamera = async () => {
     if (!userId) return alert("Informe o ID do Usuário");
     setCameraActive(true);
@@ -46,7 +46,7 @@ export default function FaceLiveness() {
     }
   };
 
-  // --- Loop detecção nativa ---
+  // === Detecção de rosto (FaceDetector nativo) ===
   const detectLoopNative = async () => {
     const detectFrame = async () => {
       if (!detectorRef.current || !videoRef.current) {
@@ -60,7 +60,10 @@ export default function FaceLiveness() {
           const nx = (box.x + box.width / 2) / videoRef.current.videoWidth;
           const ny = (box.y + box.height / 2) / videoRef.current.videoHeight;
           setFaceDetected(true);
-          setFaceCentered(Math.abs(nx - 0.5) <= CENTER_TOLERANCE && Math.abs(ny - 0.5) <= CENTER_TOLERANCE);
+          setFaceCentered(
+            Math.abs(nx - 0.5) <= CENTER_TOLERANCE &&
+            Math.abs(ny - 0.5) <= CENTER_TOLERANCE
+          );
         } else {
           setFaceDetected(false);
           setFaceCentered(false);
@@ -75,17 +78,23 @@ export default function FaceLiveness() {
     detectFrame();
   };
 
-  // --- Loop detecção face-api ---
+  // === Detecção com face-api.js ===
   const detectLoopFaceApi = async () => {
     const detectFrame = async () => {
       if (!videoRef.current) return;
-      const detection = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions());
+      const detection = await faceapi.detectSingleFace(
+        videoRef.current,
+        new faceapi.TinyFaceDetectorOptions()
+      );
       if (detection) {
         const box = detection.box;
         const nx = (box.x + box.width / 2) / videoRef.current.videoWidth;
         const ny = (box.y + box.height / 2) / videoRef.current.videoHeight;
         setFaceDetected(true);
-        setFaceCentered(Math.abs(nx - 0.5) <= CENTER_TOLERANCE && Math.abs(ny - 0.5) <= CENTER_TOLERANCE);
+        setFaceCentered(
+          Math.abs(nx - 0.5) <= CENTER_TOLERANCE &&
+          Math.abs(ny - 0.5) <= CENTER_TOLERANCE
+        );
       } else {
         setFaceDetected(false);
         setFaceCentered(false);
@@ -95,14 +104,14 @@ export default function FaceLiveness() {
     detectFrame();
   };
 
-  // --- Inicia captura do primeiro movimento quando rosto centralizado ---
+  // === Quando rosto está centralizado ===
   useEffect(() => {
     if (faceCentered && currentMoveIndex === -1) {
       setCurrentMoveIndex(0);
     }
   }, [faceCentered]);
 
-  // --- Captura sequencial de movimentos ---
+  // === Captura frames e envia ao backend ===
   useEffect(() => {
     const captureMove = async () => {
       if (currentMoveIndex === -1 || currentMoveIndex >= movementSequence.length) return;
@@ -120,6 +129,7 @@ export default function FaceLiveness() {
         ctx.scale(-1, 1);
         ctx.drawImage(videoRef.current, -canvas.width, 0, canvas.width, canvas.height);
         ctx.restore();
+
         const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.9));
         if (blob)
           frames.push(
@@ -137,7 +147,6 @@ export default function FaceLiveness() {
 
       const nextIndex = currentMoveIndex + 1;
       if (nextIndex < movementSequence.length) {
-        // vai direto para o próximo movimento sem pausa
         setCurrentMoveIndex(nextIndex);
       } else {
         setOverlayMessage("Salvando e validando rosto...");
@@ -149,7 +158,7 @@ export default function FaceLiveness() {
     captureMove();
   }, [currentMoveIndex]);
 
-  // --- Envio final ---
+  // === Chamada ao backend ===
   const captureFinalResult = async () => {
     const formData = new FormData();
     canvasRef.current.framesCollected.forEach((f) => formData.append("files", f));
@@ -161,15 +170,19 @@ export default function FaceLiveness() {
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      setOverlayMessage(data.same_person_batch ? "Verificação realizada com sucesso!" : "Rosto diferente ou não reconhecido");
+      setOverlayMessage(
+        data.same_person_batch
+          ? "Verificação realizada com sucesso!"
+          : "Rosto diferente ou não reconhecido"
+      );
     } catch (err) {
-      setOverlayMessage("❌ Erro ao enviar dados: " + err.message);
+      setOverlayMessage("Erro ao enviar dados: " + err.message);
     } finally {
       canvasRef.current.framesCollected = [];
     }
   };
 
-  // --- Parar tudo ---
+  // === Parar tudo ===
   const stopAll = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
@@ -183,6 +196,7 @@ export default function FaceLiveness() {
 
   useEffect(() => () => stopAll(), []);
 
+  // === Render ===
   return (
     <div className="upload-card">
       <h2>Verificação de Liveness Facial</h2>
@@ -203,11 +217,27 @@ export default function FaceLiveness() {
       {cameraActive && (
         <div className="video-wrapper">
           <video ref={videoRef} autoPlay playsInline muted />
-          <div className="face-frame" />
+          <div className="blur-overlay"></div>
+          <div className="face-frame"></div>
+
           <div className="arrow-overlay">
             {!faceDetected && "Rosto não detectado"}
             {faceDetected && !faceCentered && "Centralize seu rosto"}
             {faceCentered && overlayMessage}
+
+            {/* Setas adicionadas junto da mensagem */}
+            {faceCentered && overlayMessage.includes("ESQUERDA") && (
+              <div className="arrow-icon">⬅️</div>
+            )}
+            {faceCentered && overlayMessage.includes("DIREITA") && (
+              <div className="arrow-icon">➡️</div>
+            )}
+          </div>
+
+          <div className="button-overlay">
+            <button className="start-button stop" onClick={stopAll}>
+              Parar
+            </button>
           </div>
         </div>
       )}

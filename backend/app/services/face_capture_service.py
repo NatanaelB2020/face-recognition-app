@@ -1,109 +1,132 @@
-# app/services/face_capture_service.py
 import cv2
 import numpy as np
-from datetime import datetime
-from sqlalchemy.orm import Session
-from typing import List
-from insightface.app import FaceAnalysis
 from app.model.face import Face
+from insightface.app import FaceAnalysis
 
-# -------------------- UTILITÁRIOS DE IMAGEM --------------------
-def image_to_base64(image: np.ndarray, quality: int = 90) -> str:
-    import base64
-    from io import BytesIO
-    from PIL import Image
-    pil = Image.fromarray(image)
-    buf = BytesIO()
-    pil.save(buf, format="JPEG", quality=quality)
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-def normalize_image(image: np.ndarray, size=(640, 480)) -> np.ndarray:
-    if image.dtype != np.uint8:
-        image = (image * 255).astype(np.uint8)
-    return cv2.resize(image, size)
+# ============================================================
+#  DETECÇÃO AUTOMÁTICA DE GPU
+# ------------------------------------------------------------
+#  insightface utiliza ctx_id para decidir se roda na GPU (CUDA)
+#    ctx_id = -1 → CPU
+#    ctx_id = 0  → GPU device 0
+#  Aqui testamos automaticamente se existe GPU CUDA disponível.
+# ============================================================
 
-# -------------------- PERSISTÊNCIA --------------------
-def persist_face(db: Session, user_id: int, filename: str, source: str, embedding: list, image_b64: str) -> Face:
-    """
-    Cria um registro completo na tabela 'faces' com embedding e imagem.
-    """
-    face = Face(
-        user_id=user_id,
-        filename=filename,
-        source=source,
-        embedding=embedding,
-        image_data=image_b64,
-        created_at=datetime.utcnow()
-    )
-    db.add(face)
-    db.commit()
-    db.refresh(face)
-    return face
+def detect_gpu():
+    try:
+        # Tentativa simples para verificar presença das GPUs CUDA
+        import torch
+        if torch.cuda.is_available():
+            return 0  # GPU ID 0
+    except Exception:
+        pass
+    return -1         # fallback → CPU
 
-# -------------------- INICIALIZAÇÃO DO MODELO --------------------
+
+CTX_ID = detect_gpu()  
 face_app = FaceAnalysis(name="buffalo_l")
-face_app.prepare(ctx_id=-1)  # CPU=-1, GPU=0 se disponível
+face_app.prepare(ctx_id=CTX_ID)   # inicializa CPU ou GPU de acordo com CTX_ID
 
-# -------------------- EXTRAÇÃO DE EMBEDDINGS --------------------
-def extract_embeddings(image: np.ndarray) -> List[np.ndarray]:
-    faces = face_app.get(image)
-    if not faces:
-        return []
-    return [f.embedding for f in faces]
 
-# -------------------- MULTI-FRAMES --------------------
-def save_multiple_faces_from_upload(
-    db: Session,
-    user_id: int,
-    files: List[bytes],
-    filenames: List[str],
-    source: str = "UPLOAD"
-):
-    """
-    Recebe múltiplos arquivos (frames) e salva cada face detectada na tabela 'faces'.
-    Cada face terá embedding e imagem base64.
-    """
-    results = []
+# ============================================================
+#  SAVE MULTIPLE FACES WITH AUTO-GPU
+# ------------------------------------------------------------
+#  Este método:
+#   - Lê múltiplos arquivos enviados
+#   - Converte para matriz OpenCV
+#   - Detecta faces com InsightFace
+#   - Extrai o embedding da maior face
+#   - Salva no banco com SQLAlchemy
+#   - Retorna lista com resultados individuais
+# ============================================================
 
-    for file_bytes, filename in zip(files, filenames):
+async def save_multiple_faces_from_upload(db, user_id: int, files):
+    results = []             # Feedback por arquivo
+    objects_to_save = []     # Objetos ORM a serem salvos no final em batch
+
+    # ------------------------------------------------------------
+    # LER TODOS OS ARQUIVOS EM MEMÓRIA (assíncrono, eficiente)
+    # ------------------------------------------------------------
+    contents = [await f.read() for f in files]
+
+    # ------------------------------------------------------------
+    # DECODIFICAR IMAGENS USANDO OPENCV
+    # cv2.imdecode → transforma bytes em matriz BGR
+    # ------------------------------------------------------------
+    imgs = [
+        cv2.imdecode(np.frombuffer(c, np.uint8), cv2.IMREAD_COLOR)
+        for c in contents
+    ]
+
+    # ------------------------------------------------------------
+    # LOOP PARA TRATAR CADA ARQUIVO E SUA IMAGEM
+    # ------------------------------------------------------------
+    for file, img in zip(files, imgs):
         try:
-            nparr = np.frombuffer(file_bytes, np.uint8)
-            img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            if img_bgr is None:
-                results.append({"filename": filename, "status": "failed", "reason": "Falha ao decodificar a imagem"})
+            if img is None:
+                results.append({
+                    "file": file.filename,
+                    "status": "error",
+                    "message": "unable to decode image"
+                })
                 continue
 
-            img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-            img_rgb = normalize_image(img_rgb)
-            img_b64 = image_to_base64(img_rgb)
+            # ------------------------------------------------------------
+            # DETECÇÃO DE FACES COM INSIGHTFACE
+            # face_app.get(img) → retorna várias faces, com bbox + embedding
+            # ------------------------------------------------------------
+            faces = face_app.get(img)
 
-            embeddings = extract_embeddings(img_rgb)
-            if not embeddings:
-                results.append({"filename": filename, "status": "failed", "reason": "Nenhum rosto detectado"})
+            if not faces:
+                results.append({
+                    "file": file.filename,
+                    "status": "error",
+                    "message": "no face detected"
+                })
                 continue
 
-            # Salva cada embedding como uma face separada
-            saved_faces = []
-            for emb in embeddings:
-                face = persist_face(
-                    db=db,
-                    user_id=user_id,
-                    filename=filename,
-                    source=source,
-                    embedding=emb.tolist(),
-                    image_b64=img_b64
-                )
-                saved_faces.append(face.face_id)
+            # ------------------------------------------------------------
+            # ESCOLHE A MAIOR FACE
+            # bbox formato: [x1, y1, x2, y2]
+            # maior largura = x2 - x1
+            # ------------------------------------------------------------
+            main_face = max(faces, key=lambda f: f.bbox[2] - f.bbox[0])
 
-            results.append({
-                "status": "ok",
-                "user_id": user_id,
-                "filename": filename,
-                "faces_saved": saved_faces
-            })
+            # ------------------------------------------------------------
+            # EXTRAÇÃO DO EMBEDDING
+            # embedding é um vetor de 512 floats gerado pela rede neural
+            # ------------------------------------------------------------
+            embedding = main_face.embedding.tolist()
+
+            # ------------------------------------------------------------
+            # CRIA OBJETO ORM (SQLAlchemy)
+            # ------------------------------------------------------------
+            new_face = Face(
+                user_id=user_id,
+                filename=file.filename,
+                source="UPLOAD",
+                embedding=embedding
+            )
+
+            # Adicionado para commit em batch (melhor performance)
+            objects_to_save.append(new_face)
+
+            results.append({"file": file.filename, "status": "ok"})
 
         except Exception as e:
-            db.rollback()
-            results.append({"filename": filename, "status": "failed", "reason": str(e)})
+            # Qualquer erro inesperado é retornado ao cliente
+            results.append({
+                "file": file.filename,
+                "status": "error",
+                "message": str(e)
+            })
+
+    # ------------------------------------------------------------
+    # SALVA TODOS DE UMA VEZ — ganho de performance massivo
+    # ------------------------------------------------------------
+    if objects_to_save:
+        db.add_all(objects_to_save)
+        db.commit()
 
     return results

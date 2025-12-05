@@ -19,21 +19,25 @@ export default function UploadFace() {
 
   const CENTER_TOLERANCE = 0.22;
   const movementSequence = ["ESQUERDA", "DIREITA"];
-  const framesPerMove = 10;
+  const framesPerMove = 5;
   const frameInterval = 400;
 
-  // --- Inicia câmera ---
   const startCamera = async () => {
     if (!userId) return alert("Informe o ID do Usuário");
     setCameraActive(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 },
+      });
       videoRef.current.srcObject = stream;
       streamRef.current = stream;
       await videoRef.current.play();
 
       if ("FaceDetector" in window) {
-        detectorRef.current = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+        detectorRef.current = new window.FaceDetector({
+          fastMode: true,
+          maxDetectedFaces: 1,
+        });
         detectLoopNative();
       } else {
         await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
@@ -45,7 +49,6 @@ export default function UploadFace() {
     }
   };
 
-  // --- Loop detecção ---
   const detectLoopNative = async () => {
     const detectFrame = async () => {
       if (!detectorRef.current || !videoRef.current) {
@@ -59,7 +62,10 @@ export default function UploadFace() {
           const nx = (box.x + box.width / 2) / videoRef.current.videoWidth;
           const ny = (box.y + box.height / 2) / videoRef.current.videoHeight;
           setFaceDetected(true);
-          setFaceCentered(Math.abs(nx - 0.5) <= CENTER_TOLERANCE && Math.abs(ny - 0.5) <= CENTER_TOLERANCE);
+          setFaceCentered(
+            Math.abs(nx - 0.5) <= CENTER_TOLERANCE &&
+            Math.abs(ny - 0.5) <= CENTER_TOLERANCE
+          );
         } else {
           setFaceDetected(false);
           setFaceCentered(false);
@@ -77,13 +83,19 @@ export default function UploadFace() {
   const detectLoopFaceApi = async () => {
     const detectFrame = async () => {
       if (!videoRef.current) return;
-      const detection = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions());
+      const detection = await faceapi.detectSingleFace(
+        videoRef.current,
+        new faceapi.TinyFaceDetectorOptions()
+      );
       if (detection) {
         const box = detection.box;
         const nx = (box.x + box.width / 2) / videoRef.current.videoWidth;
         const ny = (box.y + box.height / 2) / videoRef.current.videoHeight;
         setFaceDetected(true);
-        setFaceCentered(Math.abs(nx - 0.5) <= CENTER_TOLERANCE && Math.abs(ny - 0.5) <= CENTER_TOLERANCE);
+        setFaceCentered(
+          Math.abs(nx - 0.5) <= CENTER_TOLERANCE &&
+          Math.abs(ny - 0.5) <= CENTER_TOLERANCE
+        );
       } else {
         setFaceDetected(false);
         setFaceCentered(false);
@@ -93,19 +105,18 @@ export default function UploadFace() {
     detectFrame();
   };
 
-  // --- Inicia primeiro movimento ---
   useEffect(() => {
     if (faceCentered && currentMoveIndex === -1) {
       setCurrentMoveIndex(0);
     }
   }, [faceCentered]);
 
-  // --- Captura sequencial de movimentos ---
   useEffect(() => {
     const captureMove = async () => {
-      if (currentMoveIndex === -1 || currentMoveIndex >= movementSequence.length) return;
+      if (currentMoveIndex === -1 || currentMoveIndex >= movementSequence.length)
+        return;
 
-      setStatusMessage(`Mova o rosto para ${movementSequence[currentMoveIndex]}...`);
+      setStatusMessage(movementSequence[currentMoveIndex]);
 
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
@@ -118,17 +129,23 @@ export default function UploadFace() {
         ctx.scale(-1, 1);
         ctx.drawImage(videoRef.current, -canvas.width, 0, canvas.width, canvas.height);
         ctx.restore();
-        const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.9));
-        if (blob) frames.push(new File([blob], `frame_${movementSequence[currentMoveIndex]}_${f}_${Date.now()}.jpg`, { type: "image/jpeg" }));
+        const blob = await new Promise((res) =>
+          canvas.toBlob(res, "image/jpeg", 0.9)
+        );
+        if (blob)
+          frames.push(
+            new File(
+              [blob],
+              `frame_${movementSequence[currentMoveIndex]}_${f}_${Date.now()}.jpg`,
+              { type: "image/jpeg" }
+            )
+          );
         await new Promise((r) => setTimeout(r, frameInterval));
       }
 
       if (!canvas.framesCollected) canvas.framesCollected = [];
       canvas.framesCollected.push(...frames);
 
-      setStatusMessage(`Movimento ${movementSequence[currentMoveIndex]} capturado`);
-
-      // Pausa rápida antes do próximo movimento
       await new Promise((r) => setTimeout(r, 800));
 
       const nextIndex = currentMoveIndex + 1;
@@ -144,15 +161,19 @@ export default function UploadFace() {
     captureMove();
   }, [currentMoveIndex]);
 
-  // --- Envio final ---
   const captureFinalResult = async () => {
     const formData = new FormData();
-    canvasRef.current.framesCollected.forEach((f) => formData.append("files", f));
+    canvasRef.current.framesCollected.forEach((f) =>
+      formData.append("files", f)
+    );
 
     try {
-      const res = await fetch(`http://localhost:8000/faces/upload/${userId}`, { method: "POST", body: formData });
+      const res = await fetch(`http://localhost:8000/faces/upload/${userId}`, {
+        method: "POST",
+        body: formData,
+      });
       if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
+      await res.json();
 
       setResultMessage("Upload finalizado com sucesso!");
     } catch (err) {
@@ -163,7 +184,6 @@ export default function UploadFace() {
     }
   };
 
-  // --- Parar tudo ---
   const stopAll = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
@@ -177,6 +197,26 @@ export default function UploadFace() {
   };
 
   useEffect(() => () => stopAll(), []);
+
+  const renderArrowMessage = () => {
+    if (!faceDetected) return "Rosto não detectado";
+    if (faceDetected && !faceCentered) return "Centralize seu rosto";
+    if (faceCentered && statusMessage === "ESQUERDA")
+      return (
+        <div className="arrow-message">
+          <span className="arrow-icon">←</span>
+          <span>Mova o rosto para a esquerda</span>
+        </div>
+      );
+    if (faceCentered && statusMessage === "DIREITA")
+      return (
+        <div className="arrow-message">
+          <span className="arrow-icon">→</span>
+          <span>Mova o rosto para a direita</span>
+        </div>
+      );
+    return statusMessage;
+  };
 
   return (
     <div className="upload-card">
@@ -197,12 +237,15 @@ export default function UploadFace() {
       {cameraActive && (
         <div className="video-wrapper">
           <video ref={videoRef} autoPlay playsInline muted />
+
+          {/* Desfoque oval */}
+          <div className="blur-overlay" />
+
+          {/* Moldura oval */}
           <div className="face-frame" />
-          <div className="arrow-overlay">
-            {!faceDetected && "Rosto não detectado"}
-            {faceDetected && !faceCentered && "Centralize seu rosto"}
-            {faceCentered && statusMessage}
-          </div>
+
+          <div className="arrow-overlay">{renderArrowMessage()}</div>
+
           <div className="button-overlay">
             <button className="start-button stop" onClick={stopAll}>
               Parar

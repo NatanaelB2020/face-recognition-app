@@ -1,4 +1,7 @@
-# ================= BACKEND (Python) =================
+# =========================
+# BACKEND (Python / FastAPI)
+# =========================
+
 # Ambiente virtual
 .venv/
 venv/
@@ -11,7 +14,11 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Arquivos de build
+# Modelos criados automaticamente
+backend/app/models/
+backend/models/
+
+# Arquivos de build Python
 *.egg-info/
 .eggs/
 dist/
@@ -23,42 +30,57 @@ build/
 # Logs
 *.log
 
-# Arquivos de configuração sensíveis
+# Arquivos sensíveis
 *.env
 *.ini
 *.cfg
 
-# ================= FRONTEND (React / Node.js) =================
-# Dependências
+
+
+# =========================
+# FRONTEND (React + Vite)
+# =========================
+
+# Dependências Node
 frontend/node_modules/
 
-# Build/output
+# Build / Output do Vite
 frontend/build/
 frontend/dist/
-frontend/.cache/      # Vite ou Next.js
-frontend/.next/       # caso use Next.js
+frontend/.cache/
 
-# Arquivos de configuração sensíveis
+# Caso futuro: Next.js
+frontend/.next/
+
+# IGNORAR SOMENTE MODELOS DENTRO DO PUBLIC
+# (public deve continuar versionado)
+frontend/face-liveness-front/public/models/
+frontend/face-liveness-front/public/models/*
+
+# Arquivos .env do front
 frontend/.env
 frontend/.env.local
 frontend/.env.development
 frontend/.env.production
 frontend/.env.test
 
-# Logs
+# Logs npm/yarn
 frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 
-# ================= IDE / Sistema ====================
+
+
+# =========================
+# SISTEMA / IDE
+# =========================
+
 # IDEs
 *.idea/
-.vscode/
 
-# Sistema
+# Sistema operacional
 .DS_Store
 Thumbs.db
-
 
 # Histórico local do VSCode
 frontend/face-liveness-front/.history/

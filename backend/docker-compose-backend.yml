@@ -1,4 +1,5 @@
 version: "3.8"
+
 services:
   backend:
     build:
@@ -11,14 +12,20 @@ services:
       - "8000:8000"
 
     environment:
+      # URL do banco de dados apontando para o container postgres_face
       DATABASE_URL: postgresql+psycopg2://faceuser:facepass@postgres_face:5432/facedb
+
+      # Caminho onde os modelos serão armazenados dentro do container
       MODEL_ROOT: "/app/app/models"
 
     volumes:
+      # Permite hot-reload do código durante desenvolvimento
       - ./:/app:cached
 
     networks:
       - fastapi-net
+    depends_on:
+      - db # opcional se quiser garantir que o container db suba primeiro
 
 networks:
   fastapi-net:
